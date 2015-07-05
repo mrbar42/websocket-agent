@@ -7,7 +7,7 @@ var AgentGateway = new AgentServer({
     protocol: AgentServer.WS,
     port: 7788,
     secret: "my secure shared secret",
-    debug: false
+    debug: true
 });
 
 AgentGateway.onTunnel('someCommand', function (message) {

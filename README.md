@@ -95,3 +95,6 @@ Both server object and client objects are instances of EventEmitter
  - `confLoaded` - emitted every time conf has been loaded successfully (after calling .conf method)
 
 
+## TODO
+
+- add connecting agent identity to tunnel messages
