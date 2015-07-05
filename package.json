@@ -1,6 +1,6 @@
 {
   "name": "websocket-agent",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Server to Server secured comunication based on socket.io websocket",
   "main": "index.js",
   "engines": {
@@ -11,8 +11,17 @@
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [
-    "websocket"
+    "websocket",
+    "promises",
+    "server"
   ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mrbar42/websocket-agent.git"
+  },
+  "bugs": {
+    "url": "https://github.com/mrbar42/websocket-agent/issues"
+  },
   "author": "mrbar42",
   "license": "MIT",
   "dependencies": {
