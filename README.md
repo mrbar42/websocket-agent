@@ -78,3 +78,20 @@ Agent.on('error', function (err) {
     console.error("Agent error!", err);
 })
 ```
+## events
+
+Both server object and client objects are instances of EventEmitter
+
+### server events
+ - `agentConnected`
+ 
+ 
+### client events
+ - `connected` - emitted once when the socket connects to the server 
+ - `disconnected` - emitted every time the connection to the server is disconnected
+ - `reconnected`- emitted every time the socket had reconnected after disconneting
+ - `ready` - emitted once a connection to the server has been established and a validation message successfully traveled to the server and back
+ - `authorized` - emitted every time the client authorizes itself with the server - its the client parallel of server's `agentAuthorized` 
+ - `confLoaded` - emitted every time conf has been loaded successfully (after calling .conf method)
+
+
