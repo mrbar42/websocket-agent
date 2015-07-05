@@ -45,7 +45,6 @@ AgentGateway.onTunnel({
 var Agent = require('websocket-agent/client');
 
 // Client
-// Client
 var Agent = require('./client');
 
 // conf can be loaded asynchronously
