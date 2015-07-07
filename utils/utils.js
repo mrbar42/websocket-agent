@@ -41,3 +41,33 @@ exports.isValidDate = function (d) {
         return false;
     return !isNaN(d.getTime());
 };
+
+// Promise helpers
+exports.resolveToF = function (val) {
+    return function () {
+        return val
+    }
+};
+exports.all = function (obj) {
+    var tasks = [];
+    if (!obj.indexOf) {
+        var fields = [];
+        for (var p in obj) {
+            if (!obj.hasOwnProperty(p)) continue;
+            fields.push(p);
+            tasks.push(obj[p]);
+        }
+    }
+    return Promise.all(tasks).then(function (results) {
+        var finalResults;
+        if (obj.indexOf) {
+            finalResults = results;
+        } else {
+            finalResults = {};
+            fields.forEach(function (field, index) {
+                finalResults[field] = results[index];
+            });
+        }
+        return finalResults;
+    });
+};

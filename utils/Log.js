@@ -1,5 +1,7 @@
 'use strict';
 
+var util = require('util');
+
 var LOG = {
     NONE: 0,
     ERROR: 1,
@@ -33,7 +35,7 @@ var colors = [
     '0;37m'
 ];
 
-var logLevel = LOG[process.env.LOG_LEVEL] || process.env.NODE_ENV == 'production' ? LOG.ERROR : LOG.DEBUG;
+var logLevel = LOG[process.env.LOG_LEVEL] || process.env.NODE_ENV == 'production' ? LOG.WARN : LOG.LOG;
 var defaultLevel = LOG.LOG;
 
 /** @namespace */
@@ -74,7 +76,7 @@ var Log = function (msg) {
             if (arg.indexOf('%s') > -1) {
                 while (arg.indexOf('%s') > -1) {
                     var subArg = args.shift();
-                    subArg = typeof subArg == 'object' && JSON.stringify(subArg) || subArg;
+                    subArg = typeof subArg == 'object' && util.inspect(subArg, {colors: true}) || subArg;
                     arg = arg.replace('%s', subArg);
                 }
                 message += arg;
@@ -94,10 +96,7 @@ var Log = function (msg) {
                 str = arg.stack;
             }
             else {
-                str = JSON.stringify(arg);
-                if (str.length >= 128) {
-                    str = JSON.stringify(arg, null, 4);
-                }
+                str = util.inspect(arg, {colors: true});
             }
 
             message += str;
