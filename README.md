@@ -4,7 +4,7 @@ WebSocket-agent is a server to server secured communication tunnel based on sock
 It allows seamless messaging using Promise semantics and syntax.
 
 install:
-```npm install websocket-agent --save```
+```javascript npm install websocket-agent --save ```
 
 
 ## Quick example
@@ -15,7 +15,6 @@ The module contain both server constructor and client
 ```javascript
 var AgentServer = require('websocket-agent/server');
 
-// Server
 var serverInstance = new AgentServer({
     protocol: AgentServer.WS,
     port: 7788,
@@ -172,8 +171,6 @@ serverInstance.onTunnel({
 })
 ```
 
-returns `AgentServer`
-
  
 #### AgentServer#command
 
@@ -238,7 +235,6 @@ CommandAll errors:
 - NO_CONNECTED_AGENTS - message timeout (the Agent may have received the message)
 
 
-
 ### server events
  - ```agentConnected``` - emitted whenever an agent is connected and verified. socket is the payload
  - ```agentDisconnected``` - emitted whenever an agent is disconnected. socket is the payload
@@ -262,7 +258,6 @@ the entire conf object will be sent to the server on the validation process.
 
 * note - Do not use complex object nesting. when updating conf remotely, nested objects changes will be overwritten in the merging process
 
-returns `Client` object
 
 #### Agent#connect
 
@@ -275,7 +270,7 @@ Example:
 Agent.connect('http://example.com:8080')
 
 ```
-returns the `Client` object
+
 
 #### Agent#tunnel
 
