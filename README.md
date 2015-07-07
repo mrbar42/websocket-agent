@@ -1,5 +1,8 @@
 # WebSocket-Agent
 
+[![NPM](https://nodei.co/npm/websocket-agent.png?downloads=true&downloadRank=true&stars=true)](https://nodei.co/npm/websocket-agent/)
+
+
 WebSocket-agent is a server to server secured communication tunnel based on socket.io websocket.
 It allows seamless messaging using Promise semantics and syntax.
 
