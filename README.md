@@ -107,6 +107,7 @@ Options:
 - ` wssOptions ` - (wss only) {object} additional options to pass to the ` https.createServer ` method
 - ` privateKey ` - (wss only) {string|Buffer} added to wssOptions
 - ` certificate ` - (wss only) {string|Buffer} added to wssOptions
+- ` agentNameFormat ` - {string} agents naming format - use `#` to indicate an auto incremented digit. multiple `#` will be filled with 0. `A###` - > `A001`
 - ` debug ` - {boolean} be verbose (don't do it to yourself). default: false
 
 ```javascript
@@ -131,22 +132,22 @@ var serverInstance = new AgentServer({
 });
  
 ```
-#### AgentServer#onTunnel
+#### AgentServer#on
 
 Respond to tunnel action from an Agent.
 
 - action specific handler
-``` AgentServer#onTunnel({string} action, {function} handler(message, agent)) ```
+``` AgentServer#on({string} action, {function} handler(message, agent)) ```
 - multiple actions
-``` AgentServer#onTunnel({object} actions)  {"action": {function} handler} ```
+``` AgentServer#on({object} actions)  {"action": {function} handler} ```
 - catch all (receives action as first argument)
-``` AgentServer#onTunnel({function} catchAllHandler(action, message, agent)) ```
+``` AgentServer#on({function} catchAllHandler(action, message, agent)) ```
 
 
 The handler follows Promise syntax and sends the eventual return value to the client
 Throwing error  will stop message processing and will trigger the ```catch``` handler on client side
 
-Call ```onTunnel``` as many times as you need.
+Call ```on``` as many times as you need.
 In case of multiple handlers for one command, they will run by declaration order
 
 note: if a generic catch all handler is defined, it will run before any action specific handlers regardless to declaration order
@@ -155,19 +156,19 @@ note: if a generic catch all handler is defined, it will run before any action s
 Example:
 ```javascript
 // catch all syntax
-serverInstance.onTunnel(function (action, message, agent) {
+serverInstance.on(function (action, message, agent) {
     if (action == 'someCommand') {
         return Promise.resolve({})
     }
 })
 
 // same as
-serverInstance.onTunnel('someCommand', function (message, agent) {
+serverInstance.on('someCommand', function (message, agent) {
     return Promise.resolve({})
 })
 
 // same as
-serverInstance.onTunnel({
+serverInstance.on({
     'someCommand': function (message, agent) {
         return Promise.resolve({})
     }
@@ -175,9 +176,9 @@ serverInstance.onTunnel({
 ```
 
  
-#### AgentServer#command
+#### AgentServer#sendTo
 
-` Agent.command({object|string} agent, {string} command [, {*} message]) `
+` Agent.sendTo({object|string} agent, {string} command [, {*} message]) `
 
 Send command to the given Agent
 
@@ -185,7 +186,7 @@ Example:
 ```javascript
 serverInstance.on('agentConnected', function (agent) {
     serverInstance
-        .command(agent, 'myAction', {attached: "payload"})
+        .sendTo(agent, 'myAction', {attached: "payload"})
         .then(function (response) {
         
         })
@@ -194,9 +195,9 @@ serverInstance.on('agentConnected', function (agent) {
         })
 })
 
-// or use agentId
+// or use agentName
 serverInstance
-    .command('A0001', 'myAction', {attached: "payload"})
+    .sendTo('A0001', 'myAction', {attached: "payload"})
     .then(function (response) {
     
     })
@@ -205,26 +206,26 @@ serverInstance
 
 ```
 
-Command errors:  
+sendTo errors:
 - TIMEOUT - message timeout (the Agent may have received the message)
 - UNKNOWN_ACTION - the Agent doesn't have any handlers for the given action
 - UNKNOWN_AGENT - the Agent doesn't have any handlers for the given action
 - AGENT_NOT_CONNECTED - the Agent doesn't have any handlers for the given action
 
 
-#### AgentServer#commandAll
+#### AgentServer#sendAll
 
-` Agent.commandAll({string} command [, {*} message]) `
+` Agent.sendAll({string} command [, {*} message]) `
 
 Send command to all of the connected Agents
 
 Example:
 ```javascript
 serverInstance
-    .commandAll('healthCheck', {attached: "payload"})
+    .sendAll('healthCheck', {attached: "payload"})
     .then(function (responses) {
         // responses = {
-        // A0001: {}, // response from agent id A0001
+        // A0001: {}, // response from agent name A0001
         // A0002: {}
         // }
     })
@@ -233,58 +234,49 @@ serverInstance
     })
 ```
 
-CommandAll errors:
+sendAll errors:
 - All errors from ` AgentServer#command `
 - NO_CONNECTED_AGENTS - message timeout (the Agent may have received the message)
 
 
 ### server events
- - ```agentConnected``` - emitted whenever an agent is connected and verified. socket is the payload
- - ```agentDisconnected``` - emitted whenever an agent is disconnected. socket is the payload
+ - ```agentConnected``` - emitted whenever an agent is connected and verified. agent object is the payload
+ - ```agentDisconnected``` - emitted whenever an agent is disconnected.  agent object is the payload
 
 
-## Agent (client class)
+## Agent (client constructor)
+
+Create a client instance
+
+Options:
+- ` host ` - {string} socket.io host to connect to (required).
+- ` secret ` - {string} secret key to validate incoming messages (required)
+- ` dataStore ` - {object} data store for persistent data. (see DataStores section bellow)
+- ` debug ` - {boolean} be verbose (don't do it to yourself). default: false
 
 ```javascript
 var Agent = require('websocket-agent/client');
- 
-```
 
-#### Agent#conf
+var agent = new Agent({
+    host: 'http://localhost:7788',
+    secret: "my secure shared secret",
+    dataStore: FileStore({file: 'clientStore.json'})
+})
 
-``` Agent.conf({object|function|Promise|null} conf) ```
-
-conf method will accept object, function that returns object/promise or a promise that resolves to an object.
-the entire conf object will be sent to the server on the validation process.
-- ```conf.secret``` - shared key between the server and the clients. used to encrypt a validation token for each message.
-- ```conf.id``` -  a unique identifier for this server (duplicates are rejected). available through `serverInstance.connectedAgents[id]`
-
-* note - Do not use complex object nesting. when updating conf remotely, nested objects changes will be overwritten in the merging process
-
-
-#### Agent#connect
-
-``` Agent.connect({string} serverUrl) ```
-
-the url of the server in socket.io schema
-
-Example:
-```javascript
-Agent.connect('http://example.com:8080')
+agent.on('ready', function () {})
 
 ```
 
+#### Agent#send
 
-#### Agent#tunnel
+``` Agent.send({string} action [,{object} message [, {number} timeout]]) ```
 
-``` Agent.tunnel({string} action [,{object} message [, {number} timeout]]) ```
-
-Send a tunnel request in Promise syntax
+Send an event request in Promise syntax
 
 Example:
 ```javascript
 Agent
-    .tunnel('someCommand', {hello: 'world'}, 10000)
+    .send('someCommand', {hello: 'world'}, 10000)
     .then(function (message) {
         // server response message
     })
@@ -300,7 +292,7 @@ Agent
 
 ```
 
-Tunnel errors:
+send errors:
 - NOT_READY - happens when trying to send tunnel before ` Agent ` emitted ` 'ready' ` event 
 - OFFLINE - happens when trying to send tunnel and agent is offline 
 - TIMEOUT - message timeout (the server may have received the message)
@@ -311,8 +303,6 @@ Tunnel errors:
  - ` disconnected` - emitted every time the connection to the server is disconnected
  - ` reconnected`- emitted every time the socket had reconnected after disconnecting
  - ` ready` - emitted once a connection to the server has been established and a validation message successfully traveled to the server and back
- - ` authorized` - emitted every time the client authorizes itself with the server - its the client parallel of server's `agentAuthorized` 
- - ` confLoaded` - emitted every time conf has been loaded successfully (after calling .conf method) 
 
 
 ## Error handling
@@ -343,7 +333,60 @@ Agent.on('error', function (err) {
 })
 ```
 
+## Data Stores
 
-# TODO
+Enable data store to save persistent client names.
+data stores must be an object with two methods `save` and `load` that returns a promise
+You can use any backend that you want
 
-- improve commandAll handling of each Agent response
+here is a simple example for a json file storage:
+
+```javascript
+var fs = require('fs');
+
+var FileStore = function (conf) {
+    conf = conf || {};
+    return {
+        save: function (doc) {
+            return new Promise(function (resolve, reject) {
+                fs.writeFile(conf.file || 'fileStore.json', JSON.stringify(doc), {flag: 'w+'}, function (err) {
+                    if (err) {
+                        console.error(err);
+                        return reject()
+                    }
+                    resolve()
+                })
+            });
+        },
+        load: function () {
+            return new Promise(function (resolve, reject) {
+                fs.readFile(conf.file || 'fileStore.json', {encoding: 'utf8', flags: 'a+'}, function (err, content) {
+                    if (err && err.code != 'ENOENT') {
+                        console.error(err);
+                        return reject();
+                    }
+                    resolve(content && JSON.parse(content));
+                })
+            });
+        }
+    }
+};
+
+# Server
+var serverInstance = new AgentServer({
+    port: 7788,
+    secret: "my secure shared secret",
+    agentNameFormat: 'A####',
+    dataStore: FileStore({file: 'serverStore.json'})
+});
+
+# Client
+var agent = new Agent({
+    host: 'http://localhost:7788',
+    secret: "my secure shared secret",
+    dataStore: FileStore({file: 'clientStore.json'})
+});
+```
+
+
+
