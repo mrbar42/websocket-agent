@@ -8,7 +8,7 @@ var FileStore = function (conf) {
     return {
         save: function (doc) {
             return new Promise(function (resolve, reject) {
-                fs.writeFile(conf.file || 'fileStore.json', JSON.stringify(doc), {flag: 'w+'}, function (err) {
+                fs.writeFile(conf.file || 'fileStore.json', JSON.stringify(doc, null, 4), {flag: 'w+'}, function (err) {
                     if (err) {
                         console.error(err);
                         return reject()
@@ -41,11 +41,22 @@ var serverInstance = new AgentServer({
 });
 
 
-serverInstance.on('someEvent', function (message, socket, agent) {
+serverInstance.on('agentConnected', function (agent) {
+    console.log("Agent connected", agent.name);
+    setTimeout(function () {
+        serverInstance
+            .sendTo(agent, 'someEventFromServer', {welcome: true})
+            .then(console.log.bind(console))
+            .catch(console.error.bind(console))
+    }, 1000);
+});
+
+serverInstance.onHook('someEvent', function (message, socket, agent) {
     console.log("Agent %s sent message", agent.name, message);
 
     return Promise.resolve("home run");
 });
+
 
 // Client
 var Agent = require('../client');
@@ -56,7 +67,7 @@ var agent = new Agent({
     dataStore: FileStore({file: 'clientStore.json'})
 });
 
-agent.onHook('someEventFromServer', function (message) {
+agent.onHook('someEventFromServer', function (message, socket) {
     // return something to the server
     if (!message) {
         throw "No message was provided";

@@ -107,7 +107,7 @@ Options:
 - ` wssOptions ` - (wss only) {object} additional options to pass to the ` https.createServer ` method
 - ` privateKey ` - (wss only) {string|Buffer} added to wssOptions
 - ` certificate ` - (wss only) {string|Buffer} added to wssOptions
-- ` agentNameFormat ` - {string} agents naming format - use `#` to indicate an auto incremented digit. multiple `#` will be filled with 0. `A###` - > `A001`
+- ` agentNameFormat ` - {string} agents naming format (default `A#`) - use `#` to indicate an auto incremented digit. multiple `#` will be filled with 0. `A###` - > `A001`
 - ` debug ` - {boolean} be verbose (don't do it to yourself). default: false
 
 ```javascript
@@ -132,22 +132,55 @@ var serverInstance = new AgentServer({
 });
  
 ```
-#### AgentServer#on
+#### Connected agent
 
-Respond to tunnel action from an Agent.
+Every connected agent is represented by an agent object with this format.
+the agent is passed to every hook message.
+If you want to add data to the object please use `agent.data` namespace
+
+*note - if an agent disconnects and reconnects the object will be recreated from scratch
+
+```javascript
+agent = {
+    name: 'A1',
+    socket: Object, // reference to the actual socket object
+    firstTime: true,
+    data: undefined // reserved namespace for your own use
+}
+```
+
+```javascript
+serverInstance.on('agentConnected', function (agent) {
+    agent.data = {connectedOn: +new Date};
+
+    serverInstance
+        .sendTo(agent, 'myAction', {msg: "Welcome " + agent.name})
+        .then(function (response) {
+
+        })
+        .catch(function (err) {
+
+        })
+})
+
+```
+
+#### AgentServer#onHook
+
+Respond to an event from an Agent.
 
 - action specific handler
-``` AgentServer#on({string} action, {function} handler(message, agent)) ```
+``` AgentServer#onHook({string} action, {function} handler(message, socket, agent)) ```
 - multiple actions
-``` AgentServer#on({object} actions)  {"action": {function} handler} ```
+``` AgentServer#onHook({object} actions)  actions = {"action": {function} handler} ```
 - catch all (receives action as first argument)
-``` AgentServer#on({function} catchAllHandler(action, message, agent)) ```
+``` AgentServer#onHook({function} catchAllHandler(action, message, socket, agent)) ```
 
 
 The handler follows Promise syntax and sends the eventual return value to the client
 Throwing error  will stop message processing and will trigger the ```catch``` handler on client side
 
-Call ```on``` as many times as you need.
+Call ```onHook``` as many times as you need.
 In case of multiple handlers for one command, they will run by declaration order
 
 note: if a generic catch all handler is defined, it will run before any action specific handlers regardless to declaration order
@@ -156,20 +189,20 @@ note: if a generic catch all handler is defined, it will run before any action s
 Example:
 ```javascript
 // catch all syntax
-serverInstance.on(function (action, message, agent) {
+serverInstance.onHook(function (action, message, socket, agent) {
     if (action == 'someCommand') {
         return Promise.resolve({})
     }
 })
 
 // same as
-serverInstance.on('someCommand', function (message, agent) {
+serverInstance.onHook('someCommand', function (message, socket, agent) {
     return Promise.resolve({})
 })
 
 // same as
-serverInstance.on({
-    'someCommand': function (message, agent) {
+serverInstance.onHook({
+    'someCommand': function (message, socket, agent) {
         return Promise.resolve({})
     }
 })
@@ -186,7 +219,7 @@ Example:
 ```javascript
 serverInstance.on('agentConnected', function (agent) {
     serverInstance
-        .sendTo(agent, 'myAction', {attached: "payload"})
+        .sendTo(agent, 'myAction', {msg: "Welcome " + agent.name})
         .then(function (response) {
         
         })
@@ -195,9 +228,9 @@ serverInstance.on('agentConnected', function (agent) {
         })
 })
 
-// or use agentName
+// or use agentName (string)
 serverInstance
-    .sendTo('A0001', 'myAction', {attached: "payload"})
+    .sendTo('A1', 'myAction', {attached: "payload"})
     .then(function (response) {
     
     })
@@ -269,13 +302,13 @@ agent.on('ready', function () {})
 
 #### Agent#send
 
-``` Agent.send({string} action [,{object} message [, {number} timeout]]) ```
+``` agent.send({string} action [,{object} message [, {number} timeout]]) ```
 
 Send an event request in Promise syntax
 
 Example:
 ```javascript
-Agent
+agent
     .send('someCommand', {hello: 'world'}, 10000)
     .then(function (message) {
         // server response message
@@ -293,16 +326,60 @@ Agent
 ```
 
 send errors:
-- NOT_READY - happens when trying to send tunnel before ` Agent ` emitted ` 'ready' ` event 
 - OFFLINE - happens when trying to send tunnel and agent is offline 
 - TIMEOUT - message timeout (the server may have received the message)
 - UNKNOWN_ACTION - the server doesn't have any handlers for the given action
- 
+
+
+#### Agent#onHook
+
+Respond to an event from the server.
+
+- action specific handler
+``` Agent#onHook({string} action, {function} handler(message, socket)) ```
+- multiple actions
+``` Agent#onHook({object} actions)  {"action": {function} handler} ```
+- catch all (receives action as first argument)
+``` Agent#onHook({function} catchAllHandler(action, message, socket)) ```
+
+
+The handler follows Promise syntax and sends the eventual return value to the client
+Throwing error  will stop message processing and will trigger the ```catch``` handler on client side
+
+Call ```on``` as many times as you need.
+In case of multiple handlers for one command, they will run by declaration order
+
+note: if a generic catch all handler is defined, it will run before any action specific handlers regardless to declaration order
+
+
+Example:
+```javascript
+// catch all syntax
+agent.onHook(function (action, message, socket) {
+ if (action == 'someEventFromServer') {
+     return Promise.resolve({status: 'Yay!'})
+ }
+})
+
+// same as
+agent.onHook('someEventFromServer', function (message, socket) {
+ return Promise.resolve({status: 'Yay!'})
+})
+
+// same as
+agent.onHook({
+ 'someEventFromServer': function (message, socket) {
+     return Promise.resolve({status: 'Yay!'})
+ }
+})
+```
+
+
 #### Agent events
- - ` connected` - emitted once when the socket connects to the server 
- - ` disconnected` - emitted every time the connection to the server is disconnected
- - ` reconnected`- emitted every time the socket had reconnected after disconnecting
- - ` ready` - emitted once a connection to the server has been established and a validation message successfully traveled to the server and back
+- ` ready` - emitted once a connection to the server has been established and a validation message successfully traveled to the server and back
+- ` connected` - emitted once when the socket connects to the server
+- ` disconnected` - emitted every time the connection to the server is disconnected
+- ` reconnected`- similar to ready event but emitted after a successful reconnection
 
 
 ## Error handling
@@ -349,7 +426,7 @@ var FileStore = function (conf) {
     return {
         save: function (doc) {
             return new Promise(function (resolve, reject) {
-                fs.writeFile(conf.file || 'fileStore.json', JSON.stringify(doc), {flag: 'w+'}, function (err) {
+                fs.writeFile(conf.file || 'fileStore.json', JSON.stringify(doc, null, 4), {flag: 'w+'}, function (err) {
                     if (err) {
                         console.error(err);
                         return reject()
@@ -360,7 +437,7 @@ var FileStore = function (conf) {
         },
         load: function () {
             return new Promise(function (resolve, reject) {
-                fs.readFile(conf.file || 'fileStore.json', {encoding: 'utf8', flags: 'a+'}, function (err, content) {
+                fs.readFile(conf.file || 'fileStore.json', {encoding: 'utf8'}, function (err, content) {
                     if (err && err.code != 'ENOENT') {
                         console.error(err);
                         return reject();
