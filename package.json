@@ -1,6 +1,6 @@
 {
   "name": "websocket-agent",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Server to Server secured comunication based on socket.io websocket",
   "main": "index.js",
   "engines": {
